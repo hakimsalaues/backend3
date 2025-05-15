@@ -1,27 +1,30 @@
-const express = require("express");
-const router = express.Router();
-
+const express = require('express');
+const passport = require('../config/passport');
+const { authorizeRoles } = require('../middlewares/authorization');
 const {
   getAllProducts,
   getProductById,
   createProduct,
   updateProduct,
-  deleteProduct,
-} = require("../controllers/products");
+  deleteProduct
+} = require('../controllers/products');
 
-// Obtener todos los productos con filtros
-router.get("/", getAllProducts);
-
-// Obtener un producto por ID
-router.get("/:pid", getProductById);
-
-// Crear un nuevo producto
-router.post("/", createProduct);
-
-// Actualizar un producto por ID
-router.put("/:pid", updateProduct);
-
-// Eliminar un producto por ID
-router.delete("/:pid", deleteProduct);
-
+const router = express.Router();
+router.get('/', getAllProducts);
+router.get('/:pid', getProductById);
+router.post('/',
+  passport.authenticate('jwt', { session: false }),
+  authorizeRoles('admin'),
+  createProduct
+);
+router.put('/:pid',
+  passport.authenticate('jwt', { session: false }),
+  authorizeRoles('admin'),
+  updateProduct
+);
+router.delete('/:pid',
+  passport.authenticate('jwt', { session: false }),
+  authorizeRoles('admin'),
+  deleteProduct
+);
 module.exports = router;

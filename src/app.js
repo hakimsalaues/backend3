@@ -10,21 +10,22 @@ const passport = require('./config/passport');
 const productsRouter = require('./routes/products.routes');
 const cartsRouter    = require('./routes/carts.routes');
 const sessionsRouter = require('./routes/sessions.routes');
+const resetRouter    = require('./routes/reset.routes');
 
 const Product = require('./models/product');
 
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer);
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-// Conexion a MongoDB 
+// Conexión directa a MongoDB Atlas (temporal)
+const MONGO_URI = 
+
+
 mongoose.set('strictQuery', false);
-
-
-
 mongoose
-  .connect(mongoURI)
+  .connect(MONGO_URI)
   .then(async () => {
     console.log('Conectado a MongoDB Atlas');
     await initProducts();
@@ -34,106 +35,69 @@ mongoose
     process.exit(1);
   });
 
-// Cargar productos desde products.json
-const initProducts = async () => {
+async function initProducts() {
   try {
     const filePath = path.join(__dirname, 'localprod/products.json');
-    if (!fs.existsSync(filePath)) {
-      console.warn('Archivo products.json no encontrado, omitiendo carga inicial');
-      return;
-    }
-
+    if (!fs.existsSync(filePath)) return;
     const data = fs.readFileSync(filePath, 'utf-8');
-    const products = JSON.parse(data);
-
+    const list = JSON.parse(data);
     const existing = await Product.find();
     if (existing.length === 0) {
-      await Product.insertMany(products);
+      await Product.insertMany(list);
       console.log('Productos iniciales cargados en MongoDB.');
-    } else {
-      console.log('Productos ya existentes en MongoDB.');
     }
-  } catch (error) {
-    console.error('Error al inicializar productos:', error.message);
+  } catch (e) {
+    console.error('Error initProducts:', e);
   }
-};
+}
 
-// Configuración de Handlebars
 const hbs = create({ extname: '.hbs' });
 app.engine('hbs', hbs.engine);
 app.set('view engine', 'hbs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
-
-// Inicializar Passport
 app.use(passport.initialize());
 
-// Rutas de sesión
 app.use('/api/sessions', sessionsRouter);
-
-// Rutas API
+app.use('/api/reset',    resetRouter);
 app.use('/api/products', productsRouter);
-app.use('/api/carts', cartsRouter);
+app.use('/api/carts',    cartsRouter);
 
-// Manejo de errores en rutas API
 app.use((err, req, res, next) => {
-  console.error('Error en API:', err.message);
+  console.error('Error en API:', err);
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 
-// Rutas de vistas
 app.get('/home', async (req, res) => {
-  try {
-    const productsFromDB = await Product.find();
-    res.render('home', { title: 'Pagina Principal', products: productsFromDB });
-  } catch (error) {
-    res.status(500).send('Error al obtener productos');
-  }
+  const productsFromDB = await Product.find();
+  res.render('home', { title: 'Página Principal', products: productsFromDB });
 });
 
 app.get('/products', async (req, res) => {
-  try {
-    const productsFromDB = await Product.find();
-    res.render('products', { title: 'Productos en Tiempo Real', products: productsFromDB });
-  } catch (error) {
-    res.status(500).send('Error al obtener productos');
-  }
+  const productsFromDB = await Product.find();
+  res.render('products', { title: 'Productos en Tiempo Real', products: productsFromDB });
 });
 
-// Configuración de WebSocket
 io.on('connection', socket => {
   console.log('Nuevo cliente conectado');
-
   Product.find()
-    .then(products => socket.emit('updateProducts', products))
-    .catch(err => console.error(err));
+    .then(list => socket.emit('updateProducts', list))
+    .catch(console.error);
 
-  socket.on('addProduct', async productData => {
-    try {
-      await Product.create(productData);
-      const updated = await Product.find();
-      io.emit('updateProducts', updated);
-    } catch (error) {
-      console.error('Error al agregar producto:', error);
-    }
+  socket.on('addProduct', async data => {
+    await Product.create(data);
+    const list = await Product.find();
+    io.emit('updateProducts', list);
   });
 
-  socket.on('deleteProduct', async productId => {
-    try {
-      await Product.findByIdAndDelete(productId);
-      const updated = await Product.find();
-      io.emit('updateProducts', updated);
-    } catch (error) {
-      console.error('Error al eliminar producto:', error);
-    }
+  socket.on('deleteProduct', async id => {
+    await Product.findByIdAndDelete(id);
+    const list = await Product.find();
+    io.emit('updateProducts', list);
   });
 });
 
-// Iniciar el servidor
-httpServer.listen(PORT, () => {
-  console.log(`Servidor escuchando en http://localhost:${PORT}`);
-});
+httpServer.listen(PORT, () => console.log(`Servidor en http://localhost:${PORT}`));

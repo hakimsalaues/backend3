@@ -1,94 +1,93 @@
-const Product = require("../models/product");
+// src/controllers/products.js
 
-// Obtener todos los productos con filtros paginacion y ordenacion
-const getAllProducts = async (req, res) => {
+const ProductRepository = require('../dao/product.repository');
+const repo = new ProductRepository();
+
+/**
+ * Obtener todos los productos, con paginación, filtros y ordenamiento.
+ */
+async function getAllProducts(req, res) {
   try {
     const { page = 1, limit = 10, sort, stock, category } = req.query;
+    const filters = {};
+    if (stock)    filters.stock = { $gte: Number(stock) };
+    if (category) filters.category = category;
 
-    const query = {};
-    if (stock) query.stock = { $gte: parseInt(stock) }; // Filtro por disponibilidad
-    if (category) query.category = category; // Filtro por categoría
+    // Construir objeto de ordenamiento
+    const sortOption = sort ? { [sort]: 1 } : {};
 
-    const options = {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      sort: sort ? { [sort]: 1 } : {}, // Orden ascendente por campo
-    };
+    // Llamada paginada al repositorio
+    const result = await repo.getAllPaginated(filters, {
+      page:  Number(page),
+      limit: Number(limit),
+      sort:  sortOption
+    });
 
-    const products = await Product.paginate(query, options);
-    res.json(products);
-  } catch (error) {
-    res.status(500).json({ error: "Error al obtener productos", details: error.message });
+    // Devolver estructura de paginación de mongoose-paginate
+    return res.json({ status: 'success', ...result });
+  } catch (err) {
+    return res.status(500).json({ error: 'Error al obtener productos', details: err.message });
   }
-};
+}
 
-// Obtener un producto por ID
-const getProductById = async (req, res) => {
+/**
+ * Obtener un producto por ID.
+ */
+async function getProductById(req, res) {
   try {
-    const { pid } = req.params;
-    const product = await Product.findById(pid);
+    const product = await repo.getById(req.params.pid);
     if (!product) {
-      return res.status(404).json({ error: "Producto no encontrado" });
+      return res.status(404).json({ error: 'Producto no encontrado' });
     }
-    res.json(product);
-  } catch (error) {
-    res.status(500).json({ error: "Error al obtener el producto", details: error.message });
+    return res.json({ status: 'success', data: product });
+  } catch (err) {
+    return res.status(500).json({ error: 'Error al obtener el producto', details: err.message });
   }
-};
+}
 
-// Crear un nuevo producto
-const createProduct = async (req, res) => {
+/**
+ * Crear un nuevo producto.
+ */
+async function createProduct(req, res) {
   try {
-    const { title, price, description, category, stock, thumbnail } = req.body;
-
-    if (!title || !price || !description || !category || stock === undefined) {
-      return res.status(400).json({ error: "Todos los campos son obligatorios" });
-    }
-
-    const newProduct = new Product({ title, price, description, category, stock, thumbnail });
-    const savedProduct = await newProduct.save();
-    res.status(201).json(savedProduct);
-  } catch (error) {
-    res.status(500).json({ error: "Error al crear el producto", details: error.message });
+    const saved = await repo.create(req.body);
+    return res.status(201).json({ status: 'success', data: saved });
+  } catch (err) {
+    return res.status(400).json({ error: 'Error al crear el producto', details: err.message });
   }
-};
+}
 
-// Actualizar un producto por ID
-const updateProduct = async (req, res) => {
+/**
+ * Actualizar un producto existente por ID.
+ */
+async function updateProduct(req, res) {
   try {
-    const { pid } = req.params;
-    const updatedProduct = await Product.findByIdAndUpdate(pid, req.body, { new: true });
-
-    if (!updatedProduct) {
-      return res.status(404).json({ error: "Producto no encontrado" });
+    const updated = await repo.update(req.params.pid, req.body);
+    if (!updated) {
+      return res.status(404).json({ error: 'Producto no encontrado' });
     }
-
-    res.json(updatedProduct);
-  } catch (error) {
-    res.status(500).json({ error: "Error al actualizar el producto", details: error.message });
+    return res.json({ status: 'success', data: updated });
+  } catch (err) {
+    return res.status(400).json({ error: 'Error al actualizar el producto', details: err.message });
   }
-};
+}
 
-// Eliminar un producto por ID
-const deleteProduct = async (req, res) => {
+/**
+ * Eliminar un producto por ID.
+ */
+async function deleteProduct(req, res) {
   try {
-    const { pid } = req.params;
-    const deletedProduct = await Product.findByIdAndDelete(pid);
-
-    if (!deletedProduct) {
-      return res.status(404).json({ error: "Producto no encontrado" });
-    }
-
-    res.status(204).send();
-  } catch (error) {
-    res.status(500).json({ error: "Error al eliminar el producto", details: error.message });
+    await repo.delete(req.params.pid);
+    return res.status(204).send();
+  } catch (err) {
+    return res.status(500).json({ error: 'Error al eliminar el producto', details: err.message });
   }
-};
+}
 
 module.exports = {
   getAllProducts,
   getProductById,
   createProduct,
   updateProduct,
-  deleteProduct,
+  deleteProduct
 };
