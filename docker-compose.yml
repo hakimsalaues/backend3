@@ -1,0 +1,30 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:6
+    container_name: ecommerce-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  app:
+    build: .
+    container_name: ecommerce-app
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/tuBase
+      - JWT_SECRET=una_clave_muy_segura
+      - MAIL_USER=hakimsalaues78@gmail.com
+      - MAIL_PASS=plbvdvqjdnvwrbxy
+    depends_on:
+      - mongo
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+volumes:
+  mongo-data:

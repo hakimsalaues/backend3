@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
@@ -11,6 +12,7 @@ const productsRouter = require('./routes/products.routes');
 const cartsRouter    = require('./routes/carts.routes');
 const sessionsRouter = require('./routes/sessions.routes');
 const resetRouter    = require('./routes/reset.routes');
+const mocksRouter    = require('./routes/mocks.router');
 
 const Product = require('./models/product');
 
@@ -19,13 +21,15 @@ const httpServer = createServer(app);
 const io = new Server(httpServer);
 const PORT = process.env.PORT || 3000;
 
-// Conexión directa a MongoDB Atlas (temporal)
+// Tu URI hardcodeada
 const MONGO_URI = 
-
 
 mongoose.set('strictQuery', false);
 mongoose
-  .connect(MONGO_URI)
+  .connect(MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  })
   .then(async () => {
     console.log('Conectado a MongoDB Atlas');
     await initProducts();
@@ -35,6 +39,7 @@ mongoose
     process.exit(1);
   });
 
+// Carga inicial de productos desde JSON
 async function initProducts() {
   try {
     const filePath = path.join(__dirname, 'localprod/products.json');
@@ -51,36 +56,42 @@ async function initProducts() {
   }
 }
 
+// Handlebars setup
 const hbs = create({ extname: '.hbs' });
 app.engine('hbs', hbs.engine);
 app.set('view engine', 'hbs');
 app.set('views', path.join(__dirname, 'views'));
 
+// Middlewares globales
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(passport.initialize());
 
+// Montar routers (en este orden)
+app.use('/api/mocks', mocksRouter);
 app.use('/api/sessions', sessionsRouter);
 app.use('/api/reset',    resetRouter);
 app.use('/api/products', productsRouter);
 app.use('/api/carts',    cartsRouter);
 
+// Manejo de errores
 app.use((err, req, res, next) => {
   console.error('Error en API:', err);
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 
+// Vistas con Handlebars
 app.get('/home', async (req, res) => {
   const productsFromDB = await Product.find();
   res.render('home', { title: 'Página Principal', products: productsFromDB });
 });
-
 app.get('/products', async (req, res) => {
   const productsFromDB = await Product.find();
   res.render('products', { title: 'Productos en Tiempo Real', products: productsFromDB });
 });
 
+// WebSockets
 io.on('connection', socket => {
   console.log('Nuevo cliente conectado');
   Product.find()
@@ -100,4 +111,5 @@ io.on('connection', socket => {
   });
 });
 
+// Iniciar servidor
 httpServer.listen(PORT, () => console.log(`Servidor en http://localhost:${PORT}`));

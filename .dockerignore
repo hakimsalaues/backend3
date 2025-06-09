@@ -1,0 +1,14 @@
+# Ignorar dependencias instaladas localmente
+node_modules
+npm-debug.log
+
+# Ignorar datos locales de desarrollo
+localprod
+*.log
+
+# Ignorar controles de versión
+.git
+.gitignore
+
+# Ignorar Dockerfiles duplicados
+.dockerignore
