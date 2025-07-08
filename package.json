@@ -5,7 +5,8 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "dev": "nodemon src/app.js"
+    "dev": "nodemon src/app.js",
+    "test": "mocha src/test/**/*.test.js"
   },
   "keywords": [],
   "author": "",
@@ -14,6 +15,7 @@
     "@faker-js/faker": "^9.8.0",
     "axios": "^1.7.9",
     "bcrypt": "^5.1.1",
+    "chai": "^4.5.0",
     "dotenv": "^16.5.0",
     "entrega1": "file:",
     "express": "^4.21.2",
@@ -27,9 +29,14 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "chai-http": "^4.3.0",
+    "mocha": "^11.7.1",
+    "nodemon": "^3.1.9",
+    "supertest": "^7.1.3"
   }
 }

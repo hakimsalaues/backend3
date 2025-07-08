@@ -8,11 +8,15 @@ const mongoose = require('mongoose');
 const fs = require('fs');
 const passport = require('./config/passport');
 
+// Routers
 const productsRouter = require('./routes/products.routes');
 const cartsRouter    = require('./routes/carts.routes');
 const sessionsRouter = require('./routes/sessions.routes');
 const resetRouter    = require('./routes/reset.routes');
 const mocksRouter    = require('./routes/mocks.router');
+
+
+const adoptionRouter = require('./routes/adoption.router');
 
 const Product = require('./models/product');
 
@@ -22,7 +26,7 @@ const io = new Server(httpServer);
 const PORT = process.env.PORT || 3000;
 
 // Tu URI hardcodeada
-const MONGO_URI = 
+const MONGO_URI = 'conexionmongo';
 
 mongoose.set('strictQuery', false);
 mongoose
@@ -68,12 +72,34 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(passport.initialize());
 
+// 📘 Swagger agregado
+const swaggerJsdoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
+
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Documentación API - Proyecto Backend',
+      version: '1.0.0',
+      description: 'Documentación Swagger del módulo Users',
+    },
+  },
+  apis: ['./src/routes/sessions.routes.js'],// Ajusta si usas otro nombre o ubicación
+};
+
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // Montar routers (en este orden)
 app.use('/api/mocks', mocksRouter);
 app.use('/api/sessions', sessionsRouter);
 app.use('/api/reset',    resetRouter);
 app.use('/api/products', productsRouter);
 app.use('/api/carts',    cartsRouter);
+
+// --- CAMBIO: Montar router de adopciones ---
+app.use('/api/adoptions', adoptionRouter);
 
 // Manejo de errores
 app.use((err, req, res, next) => {
@@ -86,6 +112,7 @@ app.get('/home', async (req, res) => {
   const productsFromDB = await Product.find();
   res.render('home', { title: 'Página Principal', products: productsFromDB });
 });
+
 app.get('/products', async (req, res) => {
   const productsFromDB = await Product.find();
   res.render('products', { title: 'Productos en Tiempo Real', products: productsFromDB });
@@ -112,4 +139,8 @@ io.on('connection', socket => {
 });
 
 // Iniciar servidor
-httpServer.listen(PORT, () => console.log(`Servidor en http://localhost:${PORT}`));
+if (require.main === module) {
+  httpServer.listen(PORT, () => console.log(`Servidor en http://localhost:${PORT}`));
+}
+
+module.exports = app;
